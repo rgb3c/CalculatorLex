@@ -1,9 +1,9 @@
 package com.rgb3c.calculatorLex;
 
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Logic {
 
@@ -115,42 +115,41 @@ public class Logic {
         }
     }
 
-    public static List<Lexeme> lexAnalyze(String expText) {
+    public static List<Lexeme> lexAnalyze (String expText) {
+
+        Map<Character,LexemeType> lexemeMap = new HashMap<>();
+        lexemeMap.put('(', LexemeType.LEFT_BRACKET);
+        lexemeMap.put(')', LexemeType.RIGHT_BRACKET);
+        lexemeMap.put('+', LexemeType.OP_PLUS);
+        lexemeMap.put('-', LexemeType.OP_MINUS);
+        lexemeMap.put('*', LexemeType.OP_MUL);
+        lexemeMap.put('/', LexemeType.OP_DIV);
+        lexemeMap.put(',', LexemeType.COMMA);
+
         ArrayList<Lexeme> lexemes = new ArrayList<>();
         int pos = 0;
         while (pos < expText.length()) {
             char c = expText.charAt(pos);
-            switch (c) {
-                case '(':
-                    lexemes.add(new Lexeme(LexemeType.LEFT_BRACKET, c));
+
+            if (lexemeMap.containsKey(c)) {
+                lexemes.add(new Lexeme(lexemeMap.get(c),c));
+                pos++;
+            }
+
+            if (c <= '9' && c >= '0') {
+                StringBuilder sb = new StringBuilder();
+                do {
+                    sb.append(c);
                     pos++;
-                    continue;
-                case ')':
-                    lexemes.add(new Lexeme(LexemeType.RIGHT_BRACKET, c));
-                    pos++;
-                    continue;
-                case '+':
-                    lexemes.add(new Lexeme(LexemeType.OP_PLUS, c));
-                    pos++;
-                    continue;
-                case '-':
-                    lexemes.add(new Lexeme(LexemeType.OP_MINUS, c));
-                    pos++;
-                    continue;
-                case '*':
-                    lexemes.add(new Lexeme(LexemeType.OP_MUL, c));
-                    pos++;
-                    continue;
-                case '/':
-                    lexemes.add(new Lexeme(LexemeType.OP_DIV, c));
-                    pos++;
-                    continue;
-                case ',':
-                    lexemes.add(new Lexeme(LexemeType.COMMA, c));
-                    pos++;
-                    continue;
-                default:
-                    if (c <= '9' && c >= '0') {
+                    if (pos >= expText.length()) {
+                        break;
+                    }
+                    c = expText.charAt(pos);
+                } while (c <= '9' && c >= '0');
+                lexemes.add(new Lexeme(LexemeType.NUMBER, sb.toString()));
+            } else {
+                if (c != ' ') {
+                    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
                         StringBuilder sb = new StringBuilder();
                         do {
                             sb.append(c);
@@ -159,34 +158,22 @@ public class Logic {
                                 break;
                             }
                             c = expText.charAt(pos);
-                        } while (c <= '9' && c >= '0');
-                        lexemes.add(new Lexeme(LexemeType.NUMBER, sb.toString()));
-                    } else {
-                        if (c != ' ') {
-                            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
-                                StringBuilder sb = new StringBuilder();
-                                do {
-                                    sb.append(c);
-                                    pos++;
-                                    if (pos >= expText.length()) {
-                                        break;
-                                    }
-                                    c = expText.charAt(pos);
-                                } while ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+                        } while ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
 
-                                if (functionMap.containsKey(sb.toString())) {
-                                    lexemes.add(new Lexeme(LexemeType.NAME, sb.toString()));
-                                } else {
-                                    throw new RuntimeException("Unexpected character: " + c);
-                                }
-                            }
-
+                        if (functionMap.containsKey(sb.toString())) {
+                            lexemes.add(new Lexeme(LexemeType.NAME, sb.toString()));
                         } else {
-                            pos++;
+                            throw new RuntimeException("Unexpected character: " + c);
                         }
                     }
+
+                } else {
+                    pos++;
+                }
+
             }
         }
+
         lexemes.add(new Lexeme(LexemeType.EOF, ""));
         return lexemes;
     }
@@ -212,11 +199,6 @@ public class Logic {
                 case OP_MINUS:
                     value -= multdiv(lexemes);
                     break;
-                case EOF:
-                case RIGHT_BRACKET:
-                case COMMA:
-                    lexemes.back();
-                    return value;
                 default:
                     lexemes.back();
                     return value;
@@ -235,13 +217,6 @@ public class Logic {
                 case OP_DIV:
                     value /= factor(lexemes);
                     break;
-                case EOF:
-                case RIGHT_BRACKET:
-                case COMMA:
-                case OP_PLUS:
-                case OP_MINUS:
-                    lexemes.back();
-                    return value;
                 default:
                     lexemes.back();
                     return value;
@@ -270,6 +245,7 @@ public class Logic {
             default:
                 throw new RuntimeException("Unexpected token: " + lexeme.value + lexemes.getPos());
         }
+
     }
 
     public static int func(LexemeBuffer lexemeBuffer) {
