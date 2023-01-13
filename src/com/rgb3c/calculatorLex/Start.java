@@ -2,12 +2,13 @@ package com.rgb3c.calculatorLex;
 
 import javax.swing.*;
 
+import static com.rgb3c.calculatorLex.Logic.actionMapFilling;
+
 public class Start {
 
     private JFrame window;
 
-    public Start() {
-
+    public Start () {
         window = new JFrame("CalculatorLex");
         ImageIcon img = new ImageIcon("src/com/rgb3c/calculatorLex/ico/logo.png");
         window.setIconImage(img.getImage());
@@ -27,6 +28,7 @@ public class Start {
                 new Start();
             }
         });
+        actionMapFilling();
     }
 }
 

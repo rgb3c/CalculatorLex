@@ -17,6 +17,7 @@ public class Panel extends JPanel {
     private final JButton backspace = new JButton("C"), equ = new JButton("="), infoButton = new JButton("i");
     boolean infoVisible = true;
 
+
     public Panel() {
         setLayout(null);
         setFocusable(true);

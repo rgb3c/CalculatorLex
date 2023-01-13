@@ -5,10 +5,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.rgb3c.calculatorLex.Logic.*;
+
 public class Logic {
 
     public static HashMap<String, Function> functionMap;
     static String result;
+    static Map<LexemeType, ActionLexeme> actionMap = new HashMap<>();
+    static boolean unary = false;
+    static int cellValue;
 
     public Logic(String input) {
         functionMap = getFunctionMap();
@@ -16,6 +21,16 @@ public class Logic {
         List<Lexeme> lexemes = lexAnalyze(expressionText);
         LexemeBuffer lexemeBuffer = new LexemeBuffer(lexemes);
         result = String.valueOf(expr(lexemeBuffer));
+    }
+
+    protected static void actionMapFilling() {
+        actionMap.put(LexemeType.NAME, new NameAction());
+        actionMap.put(LexemeType.OP_MINUS, new MinusAction());
+        actionMap.put(LexemeType.NUMBER, new NumberAction());
+        actionMap.put(LexemeType.LEFT_BRACKET, new LeftBracketAction());
+        actionMap.put(LexemeType.OP_PLUS, new PlusAction());
+        actionMap.put(LexemeType.OP_MUL, new MulAction());
+        actionMap.put(LexemeType.OP_DIV, new DivAction());
     }
 
     public String getResult() {
@@ -81,6 +96,10 @@ public class Logic {
 
         public Lexeme next() {
             return lexemes.get(pos++);
+        }
+
+        public Lexeme get() {
+            return lexemes.get(pos - 1);
         }
 
         public void back() {
@@ -170,7 +189,6 @@ public class Logic {
                 } else {
                     pos++;
                 }
-
             }
         }
 
@@ -189,64 +207,37 @@ public class Logic {
     }
 
     public static int plusminus(LexemeBuffer lexemes) {
+        unary = false;
         int value = multdiv(lexemes);
-        while (true) {
-            Lexeme lexeme = lexemes.next();
-            switch (lexeme.type) {
-                case OP_PLUS:
-                    value += multdiv(lexemes);
-                    break;
-                case OP_MINUS:
-                    value -= multdiv(lexemes);
-                    break;
-                default:
-                    lexemes.back();
-                    return value;
-            }
+        Lexeme lexeme = lexemes.next();
+        while (lexeme.type == LexemeType.OP_PLUS || lexeme.type == LexemeType.OP_MINUS) {
+            value += actionMap.get(lexeme.type).lexAction(lexemes);
+            lexeme = lexemes.next();
         }
+        lexemes.back();
+        return value;
     }
 
     public static int multdiv(LexemeBuffer lexemes) {
-        int value = factor(lexemes);
-        while (true) {
-            Lexeme lexeme = lexemes.next();
-            switch (lexeme.type) {
-                case OP_MUL:
-                    value *= factor(lexemes);
-                    break;
-                case OP_DIV:
-                    value /= factor(lexemes);
-                    break;
-                default:
-                    lexemes.back();
-                    return value;
-            }
-        }
-    }
-
-    public static int factor(LexemeBuffer lexemes) {
+        cellValue = factor(lexemes);
         Lexeme lexeme = lexemes.next();
-        switch (lexeme.type) {
-            case NAME:
-                lexemes.back();
-                return func(lexemes);
-            case OP_MINUS:
-                int value = factor(lexemes);
-                return -value;
-            case NUMBER:
-                return Integer.parseInt(lexeme.value);
-            case LEFT_BRACKET:
-                value = expr(lexemes);
-                lexeme = lexemes.next();
-                if (lexeme.type != LexemeType.RIGHT_BRACKET) {
-                    throw new RuntimeException("Unexpected token: " + lexeme.value + lexemes.getPos());
-                }
-                return value;
-            default:
-                throw new RuntimeException("Unexpected token: " + lexeme.value + lexemes.getPos());
+        while (lexeme.type == LexemeType.OP_MUL || lexeme.type == LexemeType.OP_DIV) {
+            actionMap.get(lexeme.type).lexAction(lexemes);
+            lexeme = lexemes.next();
         }
-
+        lexemes.back();
+        return cellValue;
     }
+
+    public static int factor (LexemeBuffer lexemes) {
+        unary = true;
+        Lexeme lexeme = lexemes.next();
+        if (lexeme == null) {
+            throw new RuntimeException("Unexpected token: " + lexeme.value + lexemes.getPos());
+        }
+        return actionMap.get(lexeme.type).lexAction(lexemes);
+    }
+
 
     public static int func(LexemeBuffer lexemeBuffer) {
         String name = lexemeBuffer.next().value;
@@ -255,7 +246,6 @@ public class Logic {
         if (lexeme.type != LexemeType.LEFT_BRACKET) {
             throw new RuntimeException("Wrong functional call synrax at " + lexeme.value);
         }
-
         ArrayList<Integer> args = new ArrayList<>();
 
         lexeme = lexemeBuffer.next();
@@ -274,3 +264,63 @@ public class Logic {
         return functionMap.get(name).apply(args);
     }
 }
+
+interface ActionLexeme {
+    public int lexAction(Logic.LexemeBuffer lexemes);
+}
+
+class NameAction implements ActionLexeme {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        lexemes.back();
+        return func(lexemes);
+    }
+}
+
+class NumberAction implements ActionLexeme {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        Logic.Lexeme lexeme = lexemes.get();
+        return Integer.parseInt(lexeme.value);
+    }
+}
+
+class LeftBracketAction implements ActionLexeme {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        Logic.Lexeme lexeme = lexemes.get();
+        int value = Logic.expr(lexemes);
+        lexeme = lexemes.next();
+        if (lexeme.type != Logic.LexemeType.RIGHT_BRACKET) {
+            throw new RuntimeException("Unexpected token: " + lexeme.value + lexemes.getPos());
+        }
+        return value;
+    }
+}
+
+class MinusAction implements ActionLexeme {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        if (unary) {
+            int value = factor(lexemes);
+            return -value;
+        } else {
+            return -multdiv(lexemes);
+        }
+    }
+}
+
+class PlusAction implements ActionLexeme {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        return multdiv(lexemes);
+    }
+}
+
+class MulAction implements ActionLexeme {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        return cellValue *= factor(lexemes);
+    }
+}
+
+class DivAction implements ActionLexeme {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        return cellValue /= factor(lexemes);
+    }
+}
+
