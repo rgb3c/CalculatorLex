@@ -68,7 +68,6 @@ public class Logic {
             if (args.size() != 2) {
                 throw new RuntimeException("Wrong arguments count for function pow: " + args.size());
             }
-//            return Math.pow(args.get(0), args.get(1));
             return new BigInteger(String.valueOf((int)Math.pow(args.get(0).doubleValue(), args.get(1).doubleValue())));
         });
         functionTable.put("rand", args -> {
@@ -151,6 +150,10 @@ public class Logic {
         int pos = 0;
         while (pos < expText.length()) {
             char c = expText.charAt(pos);
+            
+            if (c == '=') {
+                pos++;
+            }
 
             if (lexemeMap.containsKey(c)) {
                 lexemes.add(new Lexeme(lexemeMap.get(c),c));
