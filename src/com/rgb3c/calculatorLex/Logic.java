@@ -1,6 +1,5 @@
 package com.rgb3c.calculatorLex;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,7 +13,7 @@ public class Logic {
     static String result;
     static Map<LexemeType, ActionLexeme> actionMap = new HashMap<>();
     static boolean unary = false;
-    static BigInteger cellValue;
+    static int cellValue;
 
     public Logic(String input) {
         functionMap = getFunctionMap();
@@ -46,7 +45,7 @@ public class Logic {
     }
 
     public interface Function {
-        BigInteger apply(List<BigInteger> args);
+        int apply(List<Integer> args);
     }
 
     public static HashMap<String, Function> getFunctionMap() {
@@ -55,9 +54,9 @@ public class Logic {
             if (args.isEmpty()) {
                 throw new RuntimeException("No arguments for function min");
             } else {
-                BigInteger min = args.get(0);
-                for (BigInteger val: args) {
-                    if (val.compareTo(min) < 0) {
+                int min = args.get(0);
+                for (Integer val: args) {
+                    if (val < min) {
                         min = val;
                     }
                 }
@@ -68,20 +67,20 @@ public class Logic {
             if (args.size() != 2) {
                 throw new RuntimeException("Wrong arguments count for function pow: " + args.size());
             }
-            return new BigInteger(String.valueOf((int)Math.pow(args.get(0).doubleValue(), args.get(1).doubleValue())));
+            return (int) Math.pow(args.get(0), args.get(1));
         });
         functionTable.put("rand", args -> {
             if (!args.isEmpty()) {
                 throw new RuntimeException("Wrong arguments count for function rand");
             }
-            return new BigInteger(String.valueOf((int)(Math.random() * 256f)));
+            return (int)(Math.random() * 256f);
         });
         functionTable.put("avg", args -> {
-            BigInteger sum = new BigInteger(String.valueOf(0));
+            int sum = 0;
             for (int i = 0; i < args.size(); i++) {
-                sum = sum.add(args.get(i));
+                sum += args.get(i);
             }
-            return sum.divide(BigInteger.valueOf(args.size()));
+            return sum / args.size();
         });
         return functionTable;
     }
@@ -150,10 +149,6 @@ public class Logic {
         int pos = 0;
         while (pos < expText.length()) {
             char c = expText.charAt(pos);
-            
-            if (c == '=') {
-                pos++;
-            }
 
             if (lexemeMap.containsKey(c)) {
                 lexemes.add(new Lexeme(lexemeMap.get(c),c));
@@ -201,30 +196,30 @@ public class Logic {
         return lexemes;
     }
 
-    public static BigInteger expr (LexemeBuffer lexemes) {
+    public static int expr (LexemeBuffer lexemes) {
         Lexeme lexeme = lexemes.next();
         if (lexeme.type == LexemeType.EOF){
-            return BigInteger.valueOf(0);
+            return 0;
         } else {
             lexemes.back();
             return plusminus(lexemes);
         }
     }
 
-    public static BigInteger plusminus(LexemeBuffer lexemes) {
+    public static int plusminus(LexemeBuffer lexemes) {
         unary = false;
-        BigInteger value = multdiv(lexemes);
+        int value = multdiv(lexemes);
         Lexeme lexeme = lexemes.next();
         while (lexeme.type == LexemeType.OP_PLUS || lexeme.type == LexemeType.OP_MINUS) {
-            value = value.add(actionMap.get(lexeme.type).lexAction(lexemes));
+            value += actionMap.get(lexeme.type).lexAction(lexemes);
             lexeme = lexemes.next();
         }
         lexemes.back();
         return value;
     }
 
-    public static BigInteger multdiv(LexemeBuffer lexemes) {
-        cellValue = new BigInteger(String.valueOf(factor(lexemes)));
+    public static int multdiv(LexemeBuffer lexemes) {
+        cellValue = factor(lexemes);
         Lexeme lexeme = lexemes.next();
         while (lexeme.type == LexemeType.OP_MUL || lexeme.type == LexemeType.OP_DIV) {
             actionMap.get(lexeme.type).lexAction(lexemes);
@@ -234,7 +229,7 @@ public class Logic {
         return cellValue;
     }
 
-    public static BigInteger factor (LexemeBuffer lexemes) {
+    public static int factor (LexemeBuffer lexemes) {
         unary = true;
         Lexeme lexeme = lexemes.next();
         if (lexeme == null) {
@@ -244,14 +239,14 @@ public class Logic {
     }
 
 
-    public static BigInteger func(LexemeBuffer lexemeBuffer) {
+    public static int func(LexemeBuffer lexemeBuffer) {
         String name = lexemeBuffer.next().value;
         Lexeme lexeme = lexemeBuffer.next();
 
         if (lexeme.type != LexemeType.LEFT_BRACKET) {
             throw new RuntimeException("Wrong functional call synrax at " + lexeme.value);
         }
-        ArrayList<BigInteger> args = new ArrayList<>();
+        ArrayList<Integer> args = new ArrayList<>();
 
         lexeme = lexemeBuffer.next();
         if (lexeme.type != LexemeType.RIGHT_BRACKET) {
@@ -271,27 +266,27 @@ public class Logic {
 }
 
 interface ActionLexeme {
-    public BigInteger lexAction(LexemeBuffer lexemes);
+    public int lexAction(Logic.LexemeBuffer lexemes);
 }
 
 class NameAction implements ActionLexeme {
-    public BigInteger lexAction(LexemeBuffer lexemes) {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
         lexemes.back();
         return func(lexemes);
     }
 }
 
 class NumberAction implements ActionLexeme {
-    public BigInteger lexAction(LexemeBuffer lexemes) {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
         Logic.Lexeme lexeme = lexemes.get();
-        return new BigInteger(String.valueOf(Integer.parseInt(lexeme.value)));
+        return Integer.parseInt(lexeme.value);
     }
 }
 
 class LeftBracketAction implements ActionLexeme {
-    public BigInteger lexAction(LexemeBuffer lexemes) {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
         Logic.Lexeme lexeme = lexemes.get();
-        BigInteger value = Logic.expr(lexemes);
+        int value = Logic.expr(lexemes);
         lexeme = lexemes.next();
         if (lexeme.type != Logic.LexemeType.RIGHT_BRACKET) {
             throw new RuntimeException("Unexpected token: " + lexeme.value + lexemes.getPos());
@@ -301,31 +296,31 @@ class LeftBracketAction implements ActionLexeme {
 }
 
 class MinusAction implements ActionLexeme {
-    public BigInteger lexAction(LexemeBuffer lexemes) {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
         if (unary) {
-            BigInteger value = factor(lexemes);
-            return value.negate();
+            int value = factor(lexemes);
+            return -value;
         } else {
-            return multdiv(lexemes).negate();
+            return -multdiv(lexemes);
         }
     }
 }
 
 class PlusAction implements ActionLexeme {
-    public BigInteger lexAction(LexemeBuffer lexemes) {
+    public int lexAction(Logic.LexemeBuffer lexemes) {
         return multdiv(lexemes);
     }
 }
 
 class MulAction implements ActionLexeme {
-    public BigInteger lexAction(LexemeBuffer lexemes) {
-        return cellValue = cellValue.multiply(factor(lexemes));
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        return cellValue *= factor(lexemes);
     }
 }
 
 class DivAction implements ActionLexeme {
-    public BigInteger lexAction(LexemeBuffer lexemes) {
-        return cellValue = cellValue.divide(factor(lexemes));
+    public int lexAction(Logic.LexemeBuffer lexemes) {
+        return cellValue /= factor(lexemes);
     }
 }
 
