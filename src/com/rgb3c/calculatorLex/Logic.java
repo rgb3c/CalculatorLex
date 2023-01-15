@@ -147,52 +147,44 @@ public class Logic {
         lexemeMap.put(',', LexemeType.COMMA);
 
         ArrayList<Lexeme> lexemes = new ArrayList<>();
+        StringBuilder stringBuilder = new StringBuilder();
+
         int pos = 0;
         while (pos < expText.length()) {
             char c = expText.charAt(pos);
 
-            if (c == '=') {
-                pos++;
-            }
-
             if (lexemeMap.containsKey(c)) {
                 lexemes.add(new Lexeme(lexemeMap.get(c),c));
                 pos++;
+            } else if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) && !Character.isDigit(c)) {
+                throw new RuntimeException("Unexpected character: " + c);
             }
 
-            if (c <= '9' && c >= '0') {
-                StringBuilder sb = new StringBuilder();
-                do {
-                    sb.append(c);
+            if (Character.isDigit(c)) {
+                stringBuilder.setLength(0);
+                while (Character.isDigit(c) && pos < expText.length()) {
+                    stringBuilder.append(c);
                     pos++;
-                    if (pos >= expText.length()) {
-                        break;
+                    if (pos < expText.length()) {
+                        c = expText.charAt(pos);
                     }
-                    c = expText.charAt(pos);
-                } while (c <= '9' && c >= '0');
-                lexemes.add(new Lexeme(LexemeType.NUMBER, sb.toString()));
-            } else {
-                if (c != ' ') {
-                    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
-                        StringBuilder sb = new StringBuilder();
-                        do {
-                            sb.append(c);
-                            pos++;
-                            if (pos >= expText.length()) {
-                                break;
-                            }
-                            c = expText.charAt(pos);
-                        } while ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+                }
+                lexemes.add(new Lexeme(LexemeType.NUMBER, stringBuilder.toString()));
+            }
 
-                        if (functionMap.containsKey(sb.toString())) {
-                            lexemes.add(new Lexeme(LexemeType.NAME, sb.toString()));
-                        } else {
-                            throw new RuntimeException("Unexpected character: " + c);
-                        }
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+                stringBuilder.setLength(0);
+                while ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+                    stringBuilder.append(c);
+                    pos++;
+                    if (pos < expText.length()) {
+                        c = expText.charAt(pos);
                     }
-
+                }
+                if (functionMap.containsKey(stringBuilder.toString())) {
+                    lexemes.add(new Lexeme(LexemeType.NAME, stringBuilder.toString()));
                 } else {
-                    pos++;
+                    throw new RuntimeException("Unexpected lexeme: " + stringBuilder.toString());
                 }
             }
         }
